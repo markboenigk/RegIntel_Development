@@ -310,7 +310,11 @@ async def save_user_query(
 ):
     """Save a user's search query"""
     try:
+        print(f"🔍 DEBUG: Starting to save query for user {current_user.id}")
+        print(f"🔍 DEBUG: Query data: {query_data}")
+        
         supabase = get_supabase_config().get_client()
+        print(f"🔍 DEBUG: Supabase client created successfully")
         
         # Create query record
         query_record = {
@@ -322,10 +326,22 @@ async def save_user_query(
             "sources_count": query_data.sources_count
         }
         
+        print(f"🔍 DEBUG: Query record prepared: {query_record}")
+        
         # Insert into user_queries table with proper RLS handling
         try:
+            print(f"🔍 DEBUG: Attempting to insert into user_queries table...")
             result = supabase.table("user_queries").insert(query_record).execute()
+            print(f"🔍 DEBUG: Insert result: {result}")
+            
+            if result.data:
+                print(f"✅ DEBUG: Query saved successfully with ID: {result.data[0].get('id')}")
+            else:
+                print(f"⚠️ DEBUG: Insert succeeded but no data returned")
+                
         except Exception as insert_error:
+            print(f"❌ DEBUG: Insert failed with error: {str(insert_error)}")
+            print(f"❌ DEBUG: Error type: {type(insert_error).__name__}")
             print(f"⚠️ Warning: Could not save user query due to RLS policy: {str(insert_error)}")
             # Return a mock query object instead of failing
             return UserQuery(
@@ -350,9 +366,12 @@ async def save_user_query(
                 sources_count=saved_query.get("sources_count")
             )
         else:
+            print(f"❌ DEBUG: No data in result, raising error")
             raise HTTPException(status_code=500, detail="Failed to save query")
             
     except Exception as e:
+        print(f"❌ DEBUG: Outer exception in save_user_query: {str(e)}")
+        print(f"❌ DEBUG: Exception type: {type(e).__name__}")
         print(f"Error saving user query: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to save query: {str(e)}")
 
@@ -452,3 +471,27 @@ async def clear_user_queries(current_user: UserProfile = Depends(get_current_use
     except Exception as e:
         print(f"Error clearing user queries: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to clear queries: {str(e)}") 
+
+@router.get("/debug/table-check")
+async def check_user_queries_table(current_user: UserProfile = Depends(get_current_user)):
+    """Debug endpoint to check if user_queries table exists and is accessible"""
+    try:
+        supabase = get_supabase_config().get_client()
+        
+        # Try to describe the table
+        result = supabase.table("user_queries").select("id").limit(1).execute()
+        
+        return {
+            "table_exists": True,
+            "accessible": True,
+            "user_id": str(current_user.id),
+            "test_result": result
+        }
+    except Exception as e:
+        return {
+            "table_exists": False,
+            "accessible": False,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "user_id": str(current_user.id)
+        } 
