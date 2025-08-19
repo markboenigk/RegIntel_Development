@@ -16,3 +16,4 @@ email-validator==2.1.0
 
 # Vector database dependencies (Vercel-compatible versions)
 numpy==1.26.4
+pymilvus==2.3.4

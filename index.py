@@ -112,9 +112,8 @@ async def search_similar_documents(query: str, collection_name: str = "rss_feeds
             print("🔄 DEBUG: Milvus credentials not available, using fallback data")
             return get_fallback_sources(query, target_collection, top_k)
         
-        # For now, always use fallback to avoid Milvus dependency issues
-        print("🔄 DEBUG: Using fallback data to avoid Milvus dependency issues")
-        return get_fallback_sources(query, target_collection, top_k)
+        # Try Milvus search first, fallback only if it fails
+        print("🔍 DEBUG: Attempting Milvus vector search...")
         
         # Get query embedding for semantic search
         print(f"🔍 DEBUG: About to get embedding for query: '{query}'")
@@ -133,13 +132,12 @@ async def search_similar_documents(query: str, collection_name: str = "rss_feeds
         if not load_success:
             print(f"❌ DEBUG: Failed to load collection '{target_collection}', trying search anyway...")
         
-        # Test different Milvus REST API endpoints for search
+        # Test Zilliz Cloud V2 API endpoints for search
         search_endpoints = [
             f"{MILVUS_URI}/v2/vectordb/entities/search",
+            f"{MILVUS_URI}/v2/vectordb/collections/search",
             f"{MILVUS_URI}/v1/vectordb/entities/search",
-            f"{MILVUS_URI}/v1/entities/search",
-            f"{MILVUS_URI}/entities/search",
-            f"{MILVUS_URI}/search"
+            f"{MILVUS_URI}/v1/vectordb/collections/search"
         ]
         
         headers = {
@@ -165,6 +163,7 @@ async def search_similar_documents(query: str, collection_name: str = "rss_feeds
         # Convert to float32 array (Zilliz expects this)
         query_embedding_float32 = [float(x) for x in query_embedding]
         
+        # Zilliz Cloud V2 search payload structure
         search_data = {
             "collectionName": target_collection,
             "data": [query_embedding_float32],  # Note: embedding should be wrapped in a list
@@ -359,13 +358,12 @@ async def load_collection_if_needed(collection_name: str) -> bool:
     try:
         print(f"🔄 DEBUG: Checking if collection '{collection_name}' needs to be loaded...")
         
-        # Test different Milvus REST API endpoints for collection description
+        # Test Zilliz Cloud V2 API endpoints for collection description
         describe_endpoints = [
             f"{MILVUS_URI}/v2/vectordb/collections/describe",
-            f"{MILVUS_URI}/v1/vectordb/collections/describe",
-            f"{MILVUS_URI}/v1/collections/describe",
-            f"{MILVUS_URI}/collections/describe",
-            f"{MILVUS_URI}/collection/describe"
+            f"{MILVUS_URI}/v2/vectordb/collections/list",
+            f"{MILVUS_URI}/v2/vectordb/entities/get",
+            f"{MILVUS_URI}/v1/vectordb/collections/describe"
         ]
         
         headers = {
@@ -377,6 +375,9 @@ async def load_collection_if_needed(collection_name: str) -> bool:
             "collectionName": collection_name
         }
         
+        # For list collections, we don't need collection name
+        list_data = {}
+        
         print(f"🔄 DEBUG: Checking collection status for: {collection_name}")
         
         # Try different endpoints until one works
@@ -384,7 +385,14 @@ async def load_collection_if_needed(collection_name: str) -> bool:
         for endpoint in describe_endpoints:
             try:
                 print(f"🔄 DEBUG: Trying describe endpoint: {endpoint}")
-                response = requests.post(endpoint, json=describe_data, headers=headers, timeout=10)
+                
+                # Use appropriate data based on endpoint type
+                if "list" in endpoint:
+                    payload = list_data
+                else:
+                    payload = describe_data
+                
+                response = requests.post(endpoint, json=payload, headers=headers, timeout=10)
                 print(f"🔄 DEBUG: Endpoint {endpoint} response status: {response.status_code}")
                 
                 if response.status_code == 200:
@@ -413,13 +421,12 @@ async def load_collection_if_needed(collection_name: str) -> bool:
         if load_state == "LoadStateNotLoad":
             print(f"🔄 DEBUG: Loading collection '{collection_name}'...")
             
-            # Test different load endpoints
+            # Test Zilliz Cloud V2 load endpoints
             load_endpoints = [
                 f"{MILVUS_URI}/v2/vectordb/collections/load",
                 f"{MILVUS_URI}/v1/vectordb/collections/load",
-                f"{MILVUS_URI}/v1/collections/load",
-                f"{MILVUS_URI}/collections/load",
-                f"{MILVUS_URI}/collection/load"
+                f"{MILVUS_URI}/v2/vectordb/collections/{collection_name}/load",
+                f"{MILVUS_URI}/v1/vectordb/collections/{collection_name}/load"
             ]
             
             load_data = {
@@ -590,7 +597,21 @@ async def chat_with_gpt(message: str, conversation_history: List[ChatMessage], s
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     """Serve the main chat interface."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    try:
+        # Try to get current user from auth middleware
+        from auth.middleware import get_optional_user
+        current_user = await get_optional_user(request)
+        
+        return templates.TemplateResponse("index.html", {
+            "request": request,
+            "user": current_user
+        })
+    except Exception as e:
+        print(f"Error getting user for index page: {e}")
+        return templates.TemplateResponse("index.html", {
+            "request": request,
+            "user": None
+        })
 
 @app.get("/api/health")
 async def health_check():
@@ -945,12 +966,19 @@ async def debug_status():
         milvus_details = {}
         if MILVUS_URI and MILVUS_TOKEN:
             try:
-                # Test different Milvus API endpoints
+                                # Test Zilliz Cloud V2 API endpoints - correct structure
                 endpoints_to_test = [
+                    # V2 entities endpoints (these should work)
+                    "/v2/vectordb/entities/get",
+                    "/v2/vectordb/entities/search",
+                    "/v2/vectordb/entities/insert",
+                    # V2 collections endpoints
+                    "/v2/vectordb/collections/list",
                     "/v2/vectordb/collections/describe",
-                    "/v1/vectordb/collections/describe", 
-                    "/v1/collections/describe",
-                    "/collections/describe",
+                    # V1 fallbacks
+                    "/v1/vectordb/entities/get",
+                    "/v1/vectordb/entities/search",
+                    # Health and info
                     "/health",
                     "/"
                 ]

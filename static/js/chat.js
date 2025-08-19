@@ -83,7 +83,7 @@ class ChatApp {
         }
 
         // Authentication events
-        const logoutButton = document.getElementById('logoutButton');
+        const logoutButton = document.getElementById('forceLogoutButton');
         if (logoutButton) {
             logoutButton.addEventListener('click', (e) => {
                 e.preventDefault();
