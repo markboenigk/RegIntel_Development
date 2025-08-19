@@ -40,25 +40,25 @@ else:
 
 # Pydantic models
 class ChatMessage(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='ignore')
     
     role: str = Field(..., description="Role of the message sender")
     content: str = Field(..., description="Content of the message")
 
 class ChatRequest(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='ignore')
     
     message: str = Field(..., description="User message")
     conversation_history: List[ChatMessage] = Field(default=[], description="Conversation history")
 
 class ChatResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='ignore')
     
     response: str = Field(..., description="AI response")
     sources: List[Dict[str, Any]] = Field(default=[], description="RAG sources")
 
 class AddDocumentRequest(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='ignore')
     
     text: str = Field(..., description="Document text to add")
     metadata: str = Field(default="", description="Optional metadata for the document")
@@ -529,15 +529,22 @@ async def health_check():
 async def chat(request: ChatRequest):
     """Chat endpoint with RAG integration."""
     try:
+        print(f"🔍 DEBUG: Main chat endpoint called")
+        print(f"🔍 DEBUG: Request message: {request.message}")
+        print(f"🔍 DEBUG: Conversation history length: {len(request.conversation_history)}")
+        
         # Search for relevant documents
         sources = await search_similar_documents(request.message, DEFAULT_COLLECTION)
+        print(f"🔍 DEBUG: Found {len(sources)} sources")
         
         # Convert conversation history to ChatMessage objects
         history = [ChatMessage(role=msg.role, content=msg.content) 
                   for msg in request.conversation_history]
+        print(f"🔍 DEBUG: Converted {len(history)} history messages")
         
         # Get AI response
         response = await chat_with_gpt(request.message, history, sources)
+        print(f"🔍 DEBUG: Generated response: {response[:100]}...")
         
         return ChatResponse(
             response=response,
@@ -546,21 +553,30 @@ async def chat(request: ChatRequest):
         
     except Exception as e:
         print(f"❌ Internal error in chat endpoint: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/api/chat/{collection}", response_model=ChatResponse)
 async def chat_with_collection(collection: str, request: ChatRequest):
     """Chat endpoint with RAG integration for a specific collection."""
     try:
+        print(f"🔍 DEBUG: Chat endpoint called for collection: {collection}")
+        print(f"🔍 DEBUG: Request message: {request.message}")
+        print(f"🔍 DEBUG: Conversation history length: {len(request.conversation_history)}")
+        
         # Search for relevant documents in specified collection
         sources = await search_similar_documents(request.message, collection)
+        print(f"🔍 DEBUG: Found {len(sources)} sources")
         
         # Convert conversation history to ChatMessage objects
         history = [ChatMessage(role=msg.role, content=msg.content) 
                   for msg in request.conversation_history]
+        print(f"🔍 DEBUG: Converted {len(history)} history messages")
         
         # Get AI response
         response = await chat_with_gpt(request.message, history, sources)
+        print(f"🔍 DEBUG: Generated response: {response[:100]}...")
         
         return ChatResponse(
             response=response,
@@ -569,7 +585,9 @@ async def chat_with_collection(collection: str, request: ChatRequest):
         
     except Exception as e:
         print(f"❌ Internal error in chat endpoint: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/api/collections")
 async def get_collections():
