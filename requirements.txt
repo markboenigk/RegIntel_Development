@@ -14,6 +14,5 @@ pydantic-settings==2.1.0
 openai==1.3.0
 email-validator==2.1.0
 
-# Vector database dependencies (Vercel-compatible versions)
-numpy==1.26.4
-pymilvus==2.3.4
+# Note: numpy and pymilvus removed - not used by main application
+# The app uses HTTP API calls to Milvus instead of direct client imports
