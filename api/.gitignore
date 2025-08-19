@@ -1,0 +1,125 @@
+# Environment variables and secrets
+.env
+.env.local
+.env.production
+.env.staging
+.env.*.local
+
+# But allow templates
+!.env.example
+!.env.template
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Security audit reports (optional - remove if you want to keep them public)
+# SECURITY_AUDIT_REPORT.md
+
+# Additional security files
+*.key
+*.pem
+*.crt
+*.p12
+secrets/
+secrets.json
+secrets.yaml
+secrets.yml
+
+# Debug and test files
+debug_*.sql
+# Allow test_env.py for CI pipeline
+# test_*.py
+# *_test.py
+
+# Additional security files
+*.key
+*.pem
+*.crt
+*.p12
+secrets/
+secrets.json
+secrets.yaml
+secrets.yml
+
+# Documentation files (keep these)
+# *.md  # REMOVED - This would ignore all documentation!
+
+# Vercel deployment files
+.vercel

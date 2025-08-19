@@ -1,0 +1,42 @@
+# 🔐 Environment Variables for Local Development
+# Copy this file to .env and fill in your actual values
+
+# OpenAI API Key
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Milvus Database
+MILVUS_URI=your_milvus_uri_here
+MILVUS_TOKEN=your_milvus_token_here
+
+# Supabase Configuration (REQUIRED for authentication)
+SUPABASE_URL=your_supabase_url_here
+SUPABASE_ANON_KEY=your_supabase_anon_key_here
+SUPABASE_JWT_SECRET=your_supabase_jwt_secret_here
+
+# Collection Names
+FDA_WARNING_LETTERS_COLLECTION=fda_warning_letters
+RSS_FEEDS_COLLECTION=rss_feeds
+DEFAULT_COLLECTION=rss_feeds
+
+# Security Configuration
+SECURITY_ENABLED=true
+DEBUG_MODE=true
+
+# CORS Configuration
+CORS_ORIGINS=http://localhost:3000,http://localhost:8000,http://127.0.0.1:8000
+TRUSTED_HOSTS=localhost,127.0.0.1,0.0.0.0
+
+# Rate Limiting
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS=60
+RATE_LIMIT_WINDOW=60
+
+# RAG Configuration
+STRICT_RAG_ONLY=true
+ENABLE_RERANKING=false
+RERANKING_MODEL=gpt-4
+INITIAL_SEARCH_MULTIPLIER=3
+
+# Input Validation
+MAX_MESSAGE_LENGTH=2000
+MAX_CONVERSATION_HISTORY=20 
