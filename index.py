@@ -573,36 +573,211 @@ async def get_collections():
 
 @app.get("/api/rss-feeds/latest")
 async def get_latest_rss_feeds(limit: int = 10):
-    """Get latest RSS feeds"""
-    return {
-        "feeds": [
-            {
-                "id": f"feed_{i}",
-                "title": f"Regulatory Update {i}",
-                "content": f"Latest regulatory news and updates from various sources",
-                "published_at": "2025-08-18T20:00:00Z",
-                "source": "Regulatory News Feed"
-            }
-            for i in range(1, min(limit + 1, 6))
-        ]
-    }
+    """Get the latest RSS feeds from Supabase rss_feeds_gold table."""
+    try:
+        print(f"📰 DEBUG: Fetching latest {limit} RSS feeds from Supabase")
+        
+        # Import Supabase client here to avoid circular imports
+        from auth.config import get_supabase_config
+        
+        # Get Supabase client
+        supabase = get_supabase_config().get_client()
+        
+        # Query the rss_feeds_gold table for the most recent entries
+        print(f"📰 DEBUG: About to query Supabase with limit={limit}")
+        response = supabase.table('rss_feeds_gold').select(
+            'article_feed_name,article_published_date,article_title,content_category'
+        ).order('article_published_date', desc=True).limit(limit).execute()
+        
+        print(f"📰 DEBUG: Supabase response received")
+        if hasattr(response, 'data'):
+            articles = response.data
+            print(f"📰 DEBUG: Response has 'data' attribute, length: {len(articles)}")
+        else:
+            articles = response.get('data', [])
+            print(f"📰 DEBUG: Response uses .get('data'), length: {len(articles)}")
+        
+        print(f"📰 DEBUG: Found {len(articles)} RSS articles from Supabase")
+        
+        # Filter out articles with missing required data
+        valid_articles = []
+        for article in articles:
+            if (article.get('article_feed_name') and 
+                article.get('article_published_date') and
+                article.get('article_title')):
+                valid_articles.append(article)
+        
+        print(f"📰 DEBUG: {len(valid_articles)} articles have complete data")
+        
+        return {
+            "success": True,
+            "articles": valid_articles,
+            "count": len(valid_articles),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        print(f"❌ DEBUG: Error fetching RSS feeds: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": False,
+            "error": str(e),
+            "articles": []
+        }
 
 @app.get("/api/warning-letters/latest")
 async def get_latest_warning_letters(limit: int = 10):
-    """Get latest FDA warning letters"""
-    return {
-        "warning_letters": [
-            {
-                "id": f"wl_{i}",
-                "title": f"FDA Warning Letter {i}",
-                "content": f"FDA warning letter regarding compliance issues",
-                "issued_date": "2025-08-18",
-                "company": f"Company {i}",
-                "violations": ["Quality System", "Documentation"]
+    """Get the most recent warning letters from Supabase warning_letter_analytics table."""
+    try:
+        print(f"🔍 DEBUG: Fetching latest {limit} warning letters from Supabase")
+        
+        # Import Supabase client here to avoid circular imports
+        from auth.config import get_supabase_config
+        
+        # Get Supabase client
+        supabase = get_supabase_config().get_client()
+        
+        # Query the warning_letter_analytics table for the most recent entries
+        print(f"🔍 DEBUG: About to query Supabase for unique warning letters")
+        response = supabase.table('warning_letter_analytics').select(
+            'letter_date,company_name,summary'
+        ).order('letter_date', desc=True).execute()  # Get all rows, we'll deduplicate and limit in Python
+        
+        print(f"🔍 DEBUG: Supabase response received")
+        if hasattr(response, 'data'):
+            warning_letters = response.data
+            print(f"🔍 DEBUG: Response has 'data' attribute, length: {len(warning_letters)}")
+        else:
+            warning_letters = response.get('data', [])
+            print(f"🔍 DEBUG: Response uses .get('data'), length: {len(warning_letters)}")
+        
+        print(f"🔍 DEBUG: Found {len(warning_letters)} total warning letters from Supabase")
+        
+        # Deduplicate the warning letters based on company_name and letter_date combination
+        # This ensures we get truly unique warning letters across all data
+        seen_combinations = set()
+        unique_letters = []
+        
+        for letter in warning_letters:
+            company_name = letter.get('company_name', 'Unknown Company')
+            letter_date = letter.get('letter_date', 'Unknown Date')
+            
+            # Create a unique key for deduplication
+            unique_key = f"{company_name}_{letter_date}"
+            
+            if unique_key not in seen_combinations:
+                seen_combinations.add(unique_key)
+                unique_letters.append(letter)
+        
+        print(f"🔍 DEBUG: After deduplication: {len(unique_letters)} unique warning letters")
+        
+        # Sort by date (most recent first) and limit to the requested number
+        unique_letters.sort(key=lambda x: x.get('letter_date', ''), reverse=True)
+        limited_letters = unique_letters[:limit]
+        
+        print(f"🔍 DEBUG: After limiting: {len(limited_letters)} warning letters")
+        
+        # Transform the deduplicated and limited data to match the expected format
+        transformed_letters = []
+        for letter in limited_letters:
+            company_name = letter.get('company_name', 'Unknown Company')
+            letter_date = letter.get('letter_date', 'Unknown Date')
+            summary = letter.get('summary', 'No Subject')
+            
+            transformed_letter = {
+                "company_name": company_name,
+                "letter_date": letter_date,
+                "subject": summary
             }
-            for i in range(1, min(limit + 1, 6))
-        ]
-    }
+            transformed_letters.append(transformed_letter)
+        
+        print(f"🔍 DEBUG: Transformed {len(transformed_letters)} warning letters")
+        print(f"🔍 DEBUG: Sample transformed letter: {transformed_letters[0] if transformed_letters else 'None'}")
+        
+        # Return the exact format your frontend expects
+        response_data = {
+            "success": True,
+            "count": len(transformed_letters),
+            "warning_letters": transformed_letters,
+            "source_table": "warning_letter_analytics"
+        }
+        
+        print(f"🔍 DEBUG: Final API response: {response_data}")
+        return response_data
+        
+    except Exception as e:
+        print(f"❌ DEBUG: Error fetching warning letters from Supabase: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": False,
+            "error": str(e),
+            "warning_letters": [],
+            "source_table": "error"
+        }
+
+@app.get("/api/debug/warning-letters")
+async def debug_warning_letters():
+    """Debug endpoint to test warning letters API directly"""
+    try:
+        print(f"🔍 DEBUG: Testing warning letters API directly")
+        
+        # Import Supabase client here to avoid circular imports
+        from auth.config import get_supabase_config
+        
+        # Get Supabase client
+        supabase = get_supabase_config().get_client()
+        
+        # Test the connection and table
+        print(f"🔍 DEBUG: Testing Supabase connection...")
+        
+        # Try to get table info
+        try:
+            response = supabase.table('warning_letter_analytics').select('*').limit(1).execute()
+            
+            if hasattr(response, 'data'):
+                data = response.data
+            else:
+                data = response.get('data', [])
+            
+            print(f"🔍 DEBUG: Supabase response: {response}")
+            print(f"🔍 DEBUG: Data extracted: {data}")
+            
+            return {
+                "success": True,
+                "supabase_connected": True,
+                "table_exists": True,
+                "sample_data": data,
+                "response_type": str(type(response)),
+                "data_type": str(type(data)),
+                "data_length": len(data) if data else 0
+            }
+            
+        except Exception as table_error:
+            print(f"❌ DEBUG: Table query failed: {table_error}")
+            return {
+                "success": False,
+                "supabase_connected": True,
+                "table_exists": False,
+                "error": str(table_error),
+                "response_type": "N/A",
+                "data_type": "N/A",
+                "data_length": 0
+            }
+            
+    except Exception as e:
+        print(f"❌ DEBUG: Error in debug endpoint: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": False,
+            "supabase_connected": False,
+            "error": str(e),
+            "response_type": "N/A",
+            "data_type": "N/A",
+            "data_length": 0
+        }
 
 @app.get("/auth/me")
 async def get_current_user():

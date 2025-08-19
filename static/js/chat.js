@@ -598,12 +598,12 @@ class ChatApp {
                     <tr>
                         <td colspan="3" class="error-message">
                             <div style="text-align: center; padding: 20px;">
-                                <i class="fas fa-exclamation-triangle" style="color: #ff6b6b; font-size: 24px; margin-bottom: 10px;"></i>
+                                <i class="fas fa-exclamation-triangle" style="color: #667eea; font-size: 24px; margin-bottom: 10px;"></i>
                                 <div>Failed to load warning letters from Supabase</div>
                                 <div style="font-size: 0.8rem; margin-top: 5px; color: #86868b;">
                                     Error: ${error.message || 'Unknown error'}
                                 </div>
-                                <button onclick="window.location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #ff6b6b; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                <button onclick="window.location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">
                                     <i class="fas fa-redo"></i> Retry
                                 </button>
                             </div>
