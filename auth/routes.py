@@ -306,14 +306,33 @@ async def profile_page(request: Request, current_user: UserProfile = Depends(get
 @router.post("/queries", response_model=UserQuery)
 async def save_user_query(
     query_data: UserQueryCreate,
-    current_user: UserProfile = Depends(get_current_user)
+    current_user: UserProfile = Depends(get_current_user),
+    request: Request = None
 ):
     """Save a user's search query"""
     try:
         print(f"🔍 DEBUG: Starting to save query for user {current_user.id}")
         print(f"🔍 DEBUG: Query data: {query_data}")
         
+        # Get the authenticated Supabase client with user context
         supabase = get_supabase_config().get_client()
+        
+        # Get the auth token from the request
+        auth_token = request.cookies.get("auth_token") if request else None
+        if not auth_token:
+            print(f"❌ DEBUG: No auth token found in cookies")
+            raise HTTPException(status_code=401, detail="No authentication token found")
+        
+        print(f"🔍 DEBUG: Auth token found, setting session...")
+        
+        # Set the user's session in the Supabase client
+        try:
+            supabase.auth.set_session(auth_token, None)
+            print(f"✅ DEBUG: Supabase session set successfully")
+        except Exception as session_error:
+            print(f"❌ DEBUG: Failed to set Supabase session: {str(session_error)}")
+            raise HTTPException(status_code=401, detail="Failed to authenticate with database")
+        
         print(f"🔍 DEBUG: Supabase client created successfully")
         
         # Create query record
@@ -473,10 +492,37 @@ async def clear_user_queries(current_user: UserProfile = Depends(get_current_use
         raise HTTPException(status_code=500, detail=f"Failed to clear queries: {str(e)}") 
 
 @router.get("/debug/table-check")
-async def check_user_queries_table(current_user: UserProfile = Depends(get_current_user)):
+async def check_user_queries_table(
+    current_user: UserProfile = Depends(get_current_user),
+    request: Request = None
+):
     """Debug endpoint to check if user_queries table exists and is accessible"""
     try:
         supabase = get_supabase_config().get_client()
+        
+        # Get the auth token from the request
+        auth_token = request.cookies.get("auth_token") if request else None
+        if not auth_token:
+            return {
+                "table_exists": False,
+                "accessible": False,
+                "error": "No authentication token found",
+                "error_type": "AuthError",
+                "user_id": str(current_user.id)
+            }
+        
+        # Set the user's session in the Supabase client
+        try:
+            supabase.auth.set_session(auth_token, None)
+            print(f"✅ DEBUG: Supabase session set successfully for table check")
+        except Exception as session_error:
+            return {
+                "table_exists": False,
+                "accessible": False,
+                "error": f"Failed to set Supabase session: {str(session_error)}",
+                "error_type": "SessionError",
+                "user_id": str(current_user.id)
+            }
         
         # Try to describe the table
         result = supabase.table("user_queries").select("id").limit(1).execute()
