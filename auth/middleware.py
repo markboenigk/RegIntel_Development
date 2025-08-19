@@ -40,6 +40,10 @@ class AuthMiddleware:
                 self._jwt_secret = config.get_jwt_secret()
         return self._jwt_secret
     
+    def _get_supabase_url(self):
+        """Get Supabase URL from environment"""
+        return os.getenv("SUPABASE_URL", "")
+    
     def _get_supabase_client(self):
         """Lazy initialization of Supabase client"""
         if self._supabase is None:
@@ -112,13 +116,24 @@ class AuthMiddleware:
                     print(f"❌ JWT secret not configured, cannot validate token")
                     raise HTTPException(status_code=401, detail="JWT secret not configured")
                 
+                # Debug: Let's see what's in the token (without decoding)
+                print(f"🔐 Token length: {len(token)}")
+                print(f"🔐 Token starts with: {token[:20]}...")
+                print(f"🔐 Token ends with: ...{token[-20:]}")
+                
                 # Proper JWT validation with real secret
+                # For Supabase tokens, use relaxed validation to avoid audience/issuer issues
                 decoded = jwt.decode(
                     token, 
                     key=jwt_secret,
-                    algorithms=["HS256"]
+                    algorithms=["HS256"],
+                    options={
+                        "verify_aud": False,  # Don't verify audience
+                        "verify_iss": False,  # Don't verify issuer
+                        "verify_exp": True,   # Still verify expiration
+                    }
                 )
-                print(f"🔐 JWT decode successful, claims: {list(decoded.keys())}")
+                print(f"🔐 JWT decode successful with relaxed validation, claims: {list(decoded.keys())}")
                 
                 # Validate required claims
                 if not decoded.get("sub") or not decoded.get("email"):
