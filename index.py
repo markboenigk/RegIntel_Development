@@ -581,7 +581,17 @@ async def get_latest_rss_feeds(limit: int = 10):
         from auth.config import get_supabase_config
         
         # Get Supabase client
-        supabase = get_supabase_config().get_client()
+        supabase_config = get_supabase_config()
+        if not supabase_config or not supabase_config.is_client_available():
+            error_msg = "Supabase client not available - check configuration and environment variables"
+            print(f"❌ DEBUG: {error_msg}")
+            return {
+                "success": False,
+                "error": error_msg,
+                "articles": []
+            }
+        
+        supabase = supabase_config.get_client()
         
         # Query the rss_feeds_gold table for the most recent entries
         print(f"📰 DEBUG: About to query Supabase with limit={limit}")
@@ -636,7 +646,18 @@ async def get_latest_warning_letters(limit: int = 10):
         from auth.config import get_supabase_config
         
         # Get Supabase client
-        supabase = get_supabase_config().get_client()
+        supabase_config = get_supabase_config()
+        if not supabase_config or not supabase_config.is_client_available():
+            error_msg = "Supabase client not available - check configuration and environment variables"
+            print(f"❌ DEBUG: {error_msg}")
+            return {
+                "success": False,
+                "error": error_msg,
+                "warning_letters": [],
+                "source_table": "error"
+            }
+        
+        supabase = supabase_config.get_client()
         
         # Query the warning_letter_analytics table for the most recent entries
         print(f"🔍 DEBUG: About to query Supabase for unique warning letters")
@@ -727,7 +748,21 @@ async def debug_warning_letters():
         from auth.config import get_supabase_config
         
         # Get Supabase client
-        supabase = get_supabase_config().get_client()
+        supabase_config = get_supabase_config()
+        if not supabase_config or not supabase_config.is_client_available():
+            error_msg = "Supabase client not available - check configuration and environment variables"
+            print(f"❌ DEBUG: {error_msg}")
+            return {
+                "success": False,
+                "supabase_connected": False,
+                "table_exists": False,
+                "error": error_msg,
+                "response_type": "N/A",
+                "data_type": "N/A",
+                "data_length": 0
+            }
+        
+        supabase = supabase_config.get_client()
         
         # Test the connection and table
         print(f"🔍 DEBUG: Testing Supabase connection...")

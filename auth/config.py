@@ -59,13 +59,31 @@ class SupabaseConfig:
             print(f"   Key starts with: {self.supabase_key[:20]}...")
             print(f"   Key ends with: ...{self.supabase_key[-8:]}")
             
+            # Check for proxy-related environment variables that might cause issues
+            proxy_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']
+            for var in proxy_vars:
+                if os.getenv(var):
+                    print(f"⚠️ Found proxy environment variable: {var}={os.getenv(var)}")
+            
             # Use the correct parameter names that Supabase client expects
-            self.client: Client = create_client(self.supabase_url, self.supabase_key)
+            # Explicitly pass only the required parameters to avoid proxy issues
+            self.client: Client = create_client(
+                supabase_url=self.supabase_url,
+                supabase_key=self.supabase_key
+            )
             print(f"✅ Supabase client created successfully")
         except Exception as e:
             print(f"❌ Failed to create Supabase client: {str(e)}")
             print(f"❌ Exception type: {type(e).__name__}")
             print(f"❌ Full error details: {repr(e)}")
+            
+            # Check if it's a proxy-related error
+            if 'proxy' in str(e).lower():
+                print(f"🔧 Proxy-related error detected. Check environment variables:")
+                for var in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
+                    if os.getenv(var):
+                        print(f"   {var}: {os.getenv(var)}")
+                print(f"🔧 Try unsetting proxy variables or check network configuration")
             
             # In CI environment, we can continue without the client
             if is_ci:
