@@ -1,5 +1,4 @@
 import os
-import mmh3
 import json
 import requests
 from typing import List, Dict, Any, Optional
@@ -11,7 +10,6 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 import openai
 from dotenv import load_dotenv
-import numpy as np
 from datetime import datetime
 
 # Load environment variables
@@ -99,8 +97,12 @@ async def search_similar_documents(query: str, collection_name: str = "rss_feeds
         
         # Check if Milvus credentials are available
         if not MILVUS_URI or not MILVUS_TOKEN:
-            print("❌ DEBUG: Milvus credentials not available, using fallback data")
+            print("🔄 DEBUG: Milvus credentials not available, using fallback data")
             return get_fallback_sources(query, target_collection, top_k)
+        
+        # For now, always use fallback to avoid Milvus dependency issues
+        print("🔄 DEBUG: Using fallback data to avoid Milvus dependency issues")
+        return get_fallback_sources(query, target_collection, top_k)
         
         # Get query embedding for semantic search
         print(f"🔍 DEBUG: About to get embedding for query: '{query}'")
@@ -142,7 +144,7 @@ async def search_similar_documents(query: str, collection_name: str = "rss_feeds
             ]
         
         # Convert to float32 array (Zilliz expects this)
-        query_embedding_float32 = np.array(query_embedding, dtype=np.float32).flatten().tolist()
+        query_embedding_float32 = [float(x) for x in query_embedding]
         
         search_data = {
             "collectionName": target_collection,
