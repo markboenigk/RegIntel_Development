@@ -2,7 +2,7 @@
 Authentication models and schemas
 """
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
@@ -45,7 +45,7 @@ class UserQuery(BaseModel):
     user_id: str = Field(..., description="User ID")
     query_text: str = Field(..., description="The search query text")
     collection_name: str = Field(..., description="Collection searched (e.g., rss_feeds, fda_warning_letters)")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="When the query was made")
+    timestamp: datetime = Field(default_factory=datetime.now, description="When the query was made")
     response_length: Optional[int] = Field(None, description="Length of the AI response")
     sources_count: Optional[int] = Field(None, description="Number of sources found")
     

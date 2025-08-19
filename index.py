@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 import openai
 from dotenv import load_dotenv
 from datetime import datetime
@@ -40,18 +40,26 @@ else:
 
 # Pydantic models
 class ChatMessage(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    
     role: str = Field(..., description="Role of the message sender")
     content: str = Field(..., description="Content of the message")
 
 class ChatRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    
     message: str = Field(..., description="User message")
     conversation_history: List[ChatMessage] = Field(default=[], description="Conversation history")
 
 class ChatResponse(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    
     response: str = Field(..., description="AI response")
     sources: List[Dict[str, Any]] = Field(default=[], description="RAG sources")
 
 class AddDocumentRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    
     text: str = Field(..., description="Document text to add")
     metadata: str = Field(default="", description="Optional metadata for the document")
 
