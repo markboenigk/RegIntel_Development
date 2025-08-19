@@ -143,6 +143,21 @@ class ChatApp {
             const selectedCollection = activeButton.getAttribute('data-collection');
             console.log('🔍 Selected collection:', selectedCollection);
 
+            // Smart collection detection for better user experience
+            const messageLower = message.toLowerCase();
+            const isFdaQuestion = messageLower.includes('warning letter') ||
+                messageLower.includes('fda') ||
+                messageLower.includes('inspection') ||
+                messageLower.includes('violation') ||
+                messageLower.includes('compliance');
+
+            if (isFdaQuestion && selectedCollection === 'rss_feeds') {
+                // Suggest switching to FDA collection for FDA-related questions
+                this.addMessageToChat('assistant', '💡 <strong>Tip:</strong> This question appears to be about FDA compliance. For best results, please switch to the "FDA Warning Letters" collection using the tab above.');
+                this.hideTypingIndicator();
+                return;
+            }
+
             const response = await fetch(`/api/chat/${selectedCollection}`, {
                 method: 'POST',
                 headers: {
@@ -366,7 +381,7 @@ class ChatApp {
             sourceDiv.innerHTML = `
                 <h4>Source ${index + 1}</h4>
                 ${metadataDisplay ? `<p class="source-metadata">${metadataDisplay}</p>` : ''}
-                <p class="source-text">${this.escapeHtml(source.text.substring(0, 200))}${source.text.length > 200 ? '...' : ''}</p>
+                <p class="source-text">${this.escapeHtml(source.content.substring(0, 200))}${source.content.length > 200 ? '...' : ''}</p>
             `;
             sourcesList.appendChild(sourceDiv);
         });
