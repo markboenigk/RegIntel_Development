@@ -129,8 +129,15 @@ async def search_similar_documents(query: str, collection_name: str = "rss_feeds
         if not load_success:
             print(f"❌ DEBUG: Failed to load collection '{target_collection}', trying search anyway...")
         
-        # Use search endpoint for vector-based search
-        search_url = f"{MILVUS_URI}/v2/vectordb/entities/search"
+        # Test different Milvus REST API endpoints for search
+        search_endpoints = [
+            f"{MILVUS_URI}/v2/vectordb/entities/search",
+            f"{MILVUS_URI}/v1/vectordb/entities/search",
+            f"{MILVUS_URI}/v1/entities/search",
+            f"{MILVUS_URI}/entities/search",
+            f"{MILVUS_URI}/search"
+        ]
+        
         headers = {
             "Authorization": f"Bearer {MILVUS_TOKEN}",
             "Content-Type": "application/json"
@@ -165,16 +172,32 @@ async def search_similar_documents(query: str, collection_name: str = "rss_feeds
         }
         
         print(f"🔍 DEBUG: Attempting vector search...")
-        print(f"🔍 DEBUG: Search URL: {search_url}")
+        print(f"🔍 DEBUG: Query: {query}")
+        print(f"🔍 DEBUG: Collection: {target_collection}")
         print(f"🔍 DEBUG: Search data: {json.dumps(search_data, indent=2)}")
 
-        response = requests.post(search_url, json=search_data, headers=headers)
-        print(f"🔍 DEBUG: Milvus response status: {response.status_code}")
+        # Try different endpoints until one works
+        search_successful = False
+        for endpoint in search_endpoints:
+            try:
+                print(f"🔍 DEBUG: Trying endpoint: {endpoint}")
+                response = requests.post(endpoint, json=search_data, headers=headers, timeout=10)
+                print(f"🔍 DEBUG: Endpoint {endpoint} response status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    print(f"✅ DEBUG: Search successful via {endpoint}")
+                    search_successful = True
+                    break
+                else:
+                    print(f"❌ DEBUG: Endpoint {endpoint} failed: {response.status_code}")
+                    print(f"❌ DEBUG: Response text: {response.text[:200]}")
+                    
+            except Exception as endpoint_error:
+                print(f"❌ DEBUG: Endpoint {endpoint} error: {str(endpoint_error)}")
+                continue
         
-        if response.status_code != 200:
-            print(f"❌ DEBUG: Zilliz API error: {response.status_code}")
-            print(f"❌ DEBUG: Response text: {response.text}")
-            print("🔄 DEBUG: Using fallback data due to API error")
+        if not search_successful:
+            print(f"❌ DEBUG: All search endpoints failed, using fallback data")
             return get_fallback_sources(query, target_collection, top_k)
         
         result = response.json()
@@ -332,8 +355,15 @@ async def load_collection_if_needed(collection_name: str) -> bool:
     try:
         print(f"🔄 DEBUG: Checking if collection '{collection_name}' needs to be loaded...")
         
-        # Check collection load status using the describe endpoint
-        describe_url = f"{MILVUS_URI}/v2/vectordb/collections/describe"
+        # Test different Milvus REST API endpoints for collection description
+        describe_endpoints = [
+            f"{MILVUS_URI}/v2/vectordb/collections/describe",
+            f"{MILVUS_URI}/v1/vectordb/collections/describe",
+            f"{MILVUS_URI}/v1/collections/describe",
+            f"{MILVUS_URI}/collections/describe",
+            f"{MILVUS_URI}/collection/describe"
+        ]
+        
         headers = {
             "Authorization": f"Bearer {MILVUS_TOKEN}",
             "Content-Type": "application/json"
@@ -343,15 +373,33 @@ async def load_collection_if_needed(collection_name: str) -> bool:
             "collectionName": collection_name
         }
         
-        print(f"🔄 DEBUG: Checking collection status at: {describe_url}")
-        response = requests.post(describe_url, json=describe_data, headers=headers)
-        print(f"🔄 DEBUG: Describe response status: {response.status_code}")
+        print(f"🔄 DEBUG: Checking collection status for: {collection_name}")
         
-        if response.status_code != 200:
-            print(f"❌ DEBUG: Failed to check collection status: {response.status_code}")
-            print(f"❌ DEBUG: Response text: {response.text}")
+        # Try different endpoints until one works
+        describe_successful = False
+        for endpoint in describe_endpoints:
+            try:
+                print(f"🔄 DEBUG: Trying describe endpoint: {endpoint}")
+                response = requests.post(endpoint, json=describe_data, headers=headers, timeout=10)
+                print(f"🔄 DEBUG: Endpoint {endpoint} response status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    print(f"✅ DEBUG: Collection describe successful via {endpoint}")
+                    describe_successful = True
+                    break
+                else:
+                    print(f"❌ DEBUG: Endpoint {endpoint} failed: {response.status_code}")
+                    print(f"❌ DEBUG: Response text: {response.text[:200]}")
+                    
+            except Exception as endpoint_error:
+                print(f"❌ DEBUG: Endpoint {endpoint} error: {str(endpoint_error)}")
+                continue
+        
+        if not describe_successful:
+            print(f"❌ DEBUG: All describe endpoints failed")
             return False
         
+        # Get the successful response from the loop
         collection_info = response.json()
         print(f"🔄 DEBUG: Collection info response: {json.dumps(collection_info, indent=2)}")
         
@@ -361,28 +409,48 @@ async def load_collection_if_needed(collection_name: str) -> bool:
         if load_state == "LoadStateNotLoad":
             print(f"🔄 DEBUG: Loading collection '{collection_name}'...")
             
-            # Load the collection using the load endpoint
-            load_url = f"{MILVUS_URI}/v2/vectordb/collections/load"
+            # Test different load endpoints
+            load_endpoints = [
+                f"{MILVUS_URI}/v2/vectordb/collections/load",
+                f"{MILVUS_URI}/v1/vectordb/collections/load",
+                f"{MILVUS_URI}/v1/collections/load",
+                f"{MILVUS_URI}/collections/load",
+                f"{MILVUS_URI}/collection/load"
+            ]
+            
             load_data = {
                 "collectionName": collection_name
             }
             
-            print(f"🔄 DEBUG: Loading collection at: {load_url}")
-            load_response = requests.post(load_url, json=load_data, headers=headers)
-            print(f"🔄 DEBUG: Load response status: {load_response.status_code}")
-            print(f"🔄 DEBUG: Load response text: {load_response.text}")
+            # Try different load endpoints
+            load_successful = False
+            for load_endpoint in load_endpoints:
+                try:
+                    print(f"🔄 DEBUG: Trying load endpoint: {load_endpoint}")
+                    load_response = requests.post(load_endpoint, json=load_data, headers=headers, timeout=10)
+                    print(f"🔄 DEBUG: Endpoint {load_endpoint} response status: {load_response.status_code}")
+                    
+                    if load_response.status_code == 200:
+                        load_result = load_response.json()
+                        if load_result.get('code') == 0:
+                            print(f"✅ DEBUG: Collection '{collection_name}' loaded successfully via {load_endpoint}")
+                            load_successful = True
+                            break
+                        else:
+                            print(f"❌ DEBUG: Load failed with code: {load_result.get('code')}")
+                    else:
+                        print(f"❌ DEBUG: Endpoint {load_endpoint} failed: {load_response.status_code}")
+                        print(f"❌ DEBUG: Response text: {load_response.text[:200]}")
+                        
+                except Exception as load_error:
+                    print(f"❌ DEBUG: Endpoint {load_endpoint} error: {str(load_error)}")
+                    continue
             
-            if load_response.status_code == 200:
-                load_result = load_response.json()
-                if load_result.get('code') == 0:
-                    print(f"✅ DEBUG: Collection '{collection_name}' loaded successfully")
-                    return True
-                else:
-                    print(f"❌ DEBUG: Collection load failed with code: {load_result.get('code')}")
-                    return False
-            else:
-                print(f"❌ DEBUG: Failed to load collection: {load_response.status_code}")
+            if not load_successful:
+                print(f"❌ DEBUG: All load endpoints failed")
                 return False
+                
+            return True
         else:
             print(f"✅ DEBUG: Collection '{collection_name}' is already loaded")
             return True
@@ -868,14 +936,39 @@ async def debug_status():
         
         # Check Milvus connection if credentials are available
         milvus_status = "Not configured"
+        milvus_details = {}
         if MILVUS_URI and MILVUS_TOKEN:
             try:
-                response = requests.get(f"{MILVUS_URI}/v2/vectordb/collections/describe", 
-                                     headers={"Authorization": f"Bearer {MILVUS_TOKEN}"})
-                if response.status_code == 200:
-                    milvus_status = f"✅ Connected (Status: {response.status_code})"
-                else:
-                    milvus_status = f"❌ Connection failed (Status: {response.status_code})"
+                # Test different Milvus API endpoints
+                endpoints_to_test = [
+                    "/v2/vectordb/collections/describe",
+                    "/v1/vectordb/collections/describe", 
+                    "/v1/collections/describe",
+                    "/collections/describe",
+                    "/health",
+                    "/"
+                ]
+                
+                for endpoint in endpoints_to_test:
+                    try:
+                        response = requests.get(f"{MILVUS_URI}{endpoint}", 
+                                             headers={"Authorization": f"Bearer {MILVUS_TOKEN}"})
+                        milvus_details[f"endpoint_{endpoint}"] = {
+                            "status": response.status_code,
+                            "response": response.text[:200] if response.text else "No response body"
+                        }
+                        if response.status_code == 200:
+                            milvus_status = f"✅ Connected via {endpoint} (Status: {response.status_code})"
+                            break
+                    except Exception as endpoint_error:
+                        milvus_details[f"endpoint_{endpoint}"] = {
+                            "status": "error",
+                            "error": str(endpoint_error)
+                        }
+                
+                if milvus_status == "Not configured":
+                    milvus_status = f"❌ All endpoints failed - check API structure"
+                    
             except Exception as e:
                 milvus_status = f"❌ Connection error: {str(e)}"
         
@@ -896,6 +989,7 @@ async def debug_status():
             "timestamp": datetime.now().isoformat(),
             "environment_variables": env_status,
             "milvus_connection": milvus_status,
+            "milvus_endpoint_tests": milvus_details,
             "openai_connection": openai_status,
             "debug_info": {
                 "milvus_uri_length": len(MILVUS_URI) if MILVUS_URI else 0,
