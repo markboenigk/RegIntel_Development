@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, ConfigDict
 import openai
 from dotenv import load_dotenv
 from datetime import datetime
+from auth.routes import router as auth_router
 
 # Load environment variables
 load_dotenv()
@@ -74,6 +75,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Templates
 templates = Jinja2Templates(directory="templates")
+
+# Include auth router
+app.include_router(auth_router)
 
 # Utility functions
 async def get_embedding(text: str) -> List[float]:
@@ -910,15 +914,17 @@ async def debug_warning_letters():
             "data_length": 0
         }
 
-@app.get("/auth/me")
-async def get_current_user():
-    """Get current user info (placeholder for now)"""
-    return {"user": None, "authenticated": False}
+# Auth endpoints are handled by auth/routes.py router
 
-@app.get("/auth/login")
-async def login_page():
-    """Login page (placeholder for now)"""
-    return {"message": "Login functionality coming soon"}
+@app.get("/auth/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Serve the login page"""
+    return templates.TemplateResponse("auth/login.html", {"request": request})
+
+@app.get("/auth/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    """Serve the registration page"""
+    return templates.TemplateResponse("auth/register.html", {"request": request})
 
 @app.get("/api/debug/status")
 async def debug_status():
