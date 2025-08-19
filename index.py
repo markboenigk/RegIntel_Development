@@ -210,6 +210,49 @@ async def get_collections():
         ]
     }
 
+@app.get("/api/rss-feeds/latest")
+async def get_latest_rss_feeds(limit: int = 10):
+    """Get latest RSS feeds"""
+    return {
+        "feeds": [
+            {
+                "id": f"feed_{i}",
+                "title": f"Regulatory Update {i}",
+                "content": f"Latest regulatory news and updates from various sources",
+                "published_at": "2025-08-18T20:00:00Z",
+                "source": "Regulatory News Feed"
+            }
+            for i in range(1, min(limit + 1, 6))
+        ]
+    }
+
+@app.get("/api/warning-letters/latest")
+async def get_latest_warning_letters(limit: int = 10):
+    """Get latest FDA warning letters"""
+    return {
+        "warning_letters": [
+            {
+                "id": f"wl_{i}",
+                "title": f"FDA Warning Letter {i}",
+                "content": f"FDA warning letter regarding compliance issues",
+                "issued_date": "2025-08-18",
+                "company": f"Company {i}",
+                "violations": ["Quality System", "Documentation"]
+            }
+            for i in range(1, min(limit + 1, 6))
+        ]
+    }
+
+@app.get("/auth/me")
+async def get_current_user():
+    """Get current user info (placeholder for now)"""
+    return {"user": None, "authenticated": False}
+
+@app.get("/auth/login")
+async def login_page():
+    """Login page (placeholder for now)"""
+    return {"message": "Login functionality coming soon"}
+
 # For local development
 if __name__ == "__main__":
     import uvicorn
